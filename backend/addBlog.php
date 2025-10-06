@@ -146,11 +146,24 @@ function addBlog($db) {
         if (isset($_POST['related_books']) && $_POST['related_books']) {
             $related_books = json_decode($_POST['related_books'], true);
             if ($related_books && is_array($related_books)) {
-                addRelatedBooks($db, $blog_id, $related_books);
+                $books_added = addRelatedBooks($db, $blog_id, $related_books);
+                error_log("Blog $blog_id: Added $books_added related books successfully");
+            } else {
+                error_log("Blog $blog_id: Invalid related_books JSON data: " . json_last_error_msg());
             }
         }
         
-        sendResponse(['message' => 'Blog created successfully', 'blog_id' => $blog_id, 'slug' => $slug], 201);
+        $response_data = ['message' => 'Blog created successfully', 'blog_id' => $blog_id, 'slug' => $slug];
+        
+        // Add related books info to response if applicable
+        if (isset($books_added)) {
+            $response_data['related_books_added'] = $books_added;
+            if ($books_added > 0) {
+                $response_data['message'] = "Blog created successfully with $books_added related books";
+            }
+        }
+        
+        sendResponse($response_data, 201);
         
     } catch (PDOException $e) {
         error_log('PDO Exception in addBlog: ' . $e->getMessage());
@@ -291,11 +304,24 @@ function updateBlog($db) {
         if ($isFormData && isset($_POST['related_books']) && $_POST['related_books']) {
             $related_books = json_decode($_POST['related_books'], true);
             if ($related_books && is_array($related_books)) {
-                addRelatedBooks($db, $id, $related_books);
+                $books_added = addRelatedBooks($db, $id, $related_books);
+                error_log("Blog $id: Updated with $books_added related books successfully");
+            } else {
+                error_log("Blog $id: Invalid related_books JSON data in update: " . json_last_error_msg());
             }
         }
         
-        sendResponse(['message' => 'Blog updated successfully']);
+        $response_data = ['message' => 'Blog updated successfully'];
+        
+        // Add related books info to response if applicable
+        if (isset($books_added)) {
+            $response_data['related_books_updated'] = $books_added;
+            if ($books_added > 0) {
+                $response_data['message'] = "Blog updated successfully with $books_added related books";
+            }
+        }
+        
+        sendResponse($response_data);
         
     } catch (PDOException $e) {
         error_log('PDO Exception in updateBlog: ' . $e->getMessage());
@@ -333,6 +359,8 @@ function deleteBlog($db, $id) {
 }
 
 function addRelatedBooks($db, $blog_id, $books) {
+    $books_added = 0;
+    
     try {
         // Delete existing related books
         $delete_query = "DELETE FROM related_books WHERE blog_id = :blog_id";
@@ -346,7 +374,7 @@ function addRelatedBooks($db, $blog_id, $books) {
         $insert_stmt = $db->prepare($insert_query);
         
         foreach ($books as $index => $book) {
-            if (isset($book['title']) && isset($book['purchase_link'])) {
+            if (isset($book['title']) && isset($book['purchase_link']) && trim($book['title']) !== '' && trim($book['purchase_link']) !== '') {
                 // Handle cover image upload for each book
                 $cover_image = null;
                 $cover_image_key = 'book_cover_' . $index;
@@ -365,11 +393,11 @@ function addRelatedBooks($db, $blog_id, $books) {
                 }
                 
                 // Prepare variables for binding
-                $title = $book['title'];
-                $author = $book['author'] ?? '';
-                $purchase_link = $book['purchase_link'];
-                $description = $book['description'] ?? '';
-                $price = $book['price'] ?? '';
+                $title = trim($book['title']);
+                $author = isset($book['author']) ? trim($book['author']) : '';
+                $purchase_link = trim($book['purchase_link']);
+                $description = isset($book['description']) ? trim($book['description']) : '';
+                $price = isset($book['price']) ? trim($book['price']) : '';
                 
                 $insert_stmt->bindParam(':blog_id', $blog_id, PDO::PARAM_INT);
                 $insert_stmt->bindParam(':title', $title);
@@ -379,6 +407,8 @@ function addRelatedBooks($db, $blog_id, $books) {
                 $insert_stmt->bindParam(':description', $description);
                 $insert_stmt->bindParam(':price', $price);
                 $insert_stmt->execute();
+                
+                $books_added++;
             }
         }
         
@@ -386,6 +416,8 @@ function addRelatedBooks($db, $blog_id, $books) {
         // Log error but don't fail the main operation
         error_log('Failed to add related books: ' . $e->getMessage());
     }
+    
+    return $books_added;
 }
 
 // Helper function for file uploads with subfolder support

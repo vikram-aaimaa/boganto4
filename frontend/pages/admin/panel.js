@@ -222,6 +222,19 @@ const AdminPanel = () => {
     setLoading(true)
 
     try {
+      // Validate related books before submission
+      const validBooks = relatedBooks.filter(book => 
+        book.title && book.title.trim() !== '' && 
+        book.purchase_link && book.purchase_link.trim() !== ''
+      )
+      
+      if (relatedBooks.length > 0 && validBooks.length === 0) {
+        showToast('Related books must have at least a title and purchase link', 'error')
+        setLoading(false)
+        return
+      }
+      
+      console.log(`Submitting blog with ${validBooks.length} valid related books:`, validBooks)
       const formPayload = new FormData()
       
       // Add all form fields
@@ -234,18 +247,20 @@ const AdminPanel = () => {
       })
 
       // Add related books and their cover images
-      if (relatedBooks.length > 0) {
+      if (validBooks.length > 0) {
         // Add related books data without cover_image files
-        const booksData = relatedBooks.map(book => {
+        const booksData = validBooks.map(book => {
           const { cover_image, ...bookData } = book
           return bookData
         })
         formPayload.append('related_books', JSON.stringify(booksData))
+        console.log('Related books JSON being sent:', JSON.stringify(booksData))
         
         // Add cover image files separately
-        relatedBooks.forEach((book, index) => {
+        validBooks.forEach((book, index) => {
           if (book.cover_image && book.cover_image instanceof File) {
             formPayload.append(`book_cover_${index}`, book.cover_image)
+            console.log(`Added cover image for book ${index}:`, book.cover_image.name)
           }
         })
       }
@@ -266,7 +281,20 @@ const AdminPanel = () => {
         })
       }
 
-      showToast(editingBlog ? 'Blog updated successfully!' : 'Blog created successfully!')
+      // Show success message with related books info
+      const responseData = response.data
+      let successMessage = editingBlog ? 'Blog updated successfully!' : 'Blog created successfully!'
+      
+      if (responseData.related_books_added !== undefined) {
+        const bookCount = responseData.related_books_added || responseData.related_books_updated
+        if (bookCount > 0) {
+          successMessage += ` ${bookCount} related book(s) ${editingBlog ? 'updated' : 'added'}.`
+        }
+      } else if (validBooks.length > 0) {
+        successMessage += ` ${validBooks.length} related book(s) processed.`
+      }
+      
+      showToast(successMessage)
       resetForm()
       setShowForm(false)
       fetchBlogs()
@@ -957,9 +985,16 @@ const AdminPanel = () => {
                       {/* Related Books */}
                       <div>
                         <div className="flex items-center justify-between mb-4">
-                          <label className="block text-sm font-medium text-slate-700">
-                            Related Books
-                          </label>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700">
+                              Related Books
+                            </label>
+                            {relatedBooks.length > 0 && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {relatedBooks.filter(book => book.title && book.purchase_link).length} of {relatedBooks.length} books have required fields
+                              </p>
+                            )}
+                          </div>
                           <button
                             type="button"
                             onClick={addRelatedBook}
@@ -981,7 +1016,11 @@ const AdminPanel = () => {
                                   placeholder="Book title"
                                   value={book.title || ''}
                                   onChange={(e) => updateRelatedBook(index, 'title', e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                                    book.title && book.title.trim() !== '' 
+                                      ? 'border-gray-300' 
+                                      : 'border-red-300 bg-red-50'
+                                  }`}
                                 />
                               </div>
                               <div>
@@ -1015,7 +1054,11 @@ const AdminPanel = () => {
                                   placeholder="https://amazon.com/..."
                                   value={book.purchase_link || ''}
                                   onChange={(e) => updateRelatedBook(index, 'purchase_link', e.target.value)}
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                                    book.purchase_link && book.purchase_link.trim() !== '' 
+                                      ? 'border-gray-300' 
+                                      : 'border-red-300 bg-red-50'
+                                  }`}
                                 />
                               </div>
                               <div>
