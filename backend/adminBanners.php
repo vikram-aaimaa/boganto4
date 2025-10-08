@@ -111,7 +111,7 @@ function addBanner($db) {
         // Handle file upload
         $image_url = null;
         if (isset($_FILES['banner_image'])) {
-            $image_url = uploadFile($_FILES['banner_image'], 'banners');
+            $image_url = uploadBannerFile($_FILES['banner_image'], 'banners');
             if (!$image_url && $_FILES['banner_image']['error'] !== UPLOAD_ERR_NO_FILE) {
                 sendResponse(['error' => 'Failed to upload banner image'], 400);
             }
@@ -180,7 +180,7 @@ function updateBanner($db) {
             $updateImage = false;
             
             if (isset($_FILES['banner_image']) && $_FILES['banner_image']['error'] === UPLOAD_ERR_OK) {
-                $image_url = uploadFile($_FILES['banner_image'], 'banners');
+                $image_url = uploadBannerFile($_FILES['banner_image'], 'banners');
                 if (!$image_url) {
                     sendResponse(['error' => 'Failed to upload banner image'], 400);
                 }
@@ -276,7 +276,7 @@ function deleteBanner($db, $id) {
 }
 
 // Enhanced upload function with subfolder support
-function uploadFile($file, $subfolder = '') {
+function uploadBannerFile($file, $subfolder = '') {
     $upload_dir = '../uploads/';
     
     // Create subfolder if specified

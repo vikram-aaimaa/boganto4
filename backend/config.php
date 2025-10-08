@@ -4,7 +4,7 @@ class DatabaseConfig {
     private $host = 'localhost';
     private $db_name = 'boganto_blog';
     private $username = 'root';
-    private $password = 'Vj2004@jangid';
+    private $password = '';
     public $conn;
 
     public function getConnection() {

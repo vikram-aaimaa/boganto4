@@ -96,13 +96,17 @@ export const blogAPI = {
   },
   
   // Update blog (admin)
-  updateBlog: (blogData) => {
-    return api.put('/api/admin/blogs', blogData)
+  updateBlog: (formData) => {
+    return api.put('/api/admin/blogs', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
   },
   
   // Delete blog (admin)
   deleteBlog: (id) => {
-    return api.delete(`/api/admin/blogs/${id}`)
+    return api.delete(`/api/admin/blogs?id=${id}`)
   }
 }
 
@@ -116,9 +120,34 @@ export const categoryAPI = {
 
 // Banner API functions
 export const bannerAPI = {
-  // Get banner images
+  // Get banner images (public)
   getBanners: () => {
     return api.get('/api/banner')
+  },
+  
+  // Admin banner functions
+  getAdminBanners: () => {
+    return api.get('/api/admin/banners')
+  },
+  
+  createBanner: (formData) => {
+    return api.post('/api/admin/banners', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  updateBanner: (formData) => {
+    return api.put('/api/admin/banners', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+  
+  deleteBanner: (id) => {
+    return api.delete(`/api/admin/banners?id=${id}`)
   }
 }
 
