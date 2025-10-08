@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
 import { useAuth } from '../../contexts/AuthContext'
+import { blogAPI, categoryAPI, bannerAPI } from '../../utils/api'
 import axios from 'axios'
 import { 
   Menu, 
@@ -103,10 +104,8 @@ const AdminPanel = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('/api/categories', {
-        withCredentials: true
-      })
-      setCategories(response.data.categories || [])
+      const response = await categoryAPI.getCategories()
+      setCategories(response.categories || [])
     } catch (error) {
       console.error('Error fetching categories:', error)
       showToast('Failed to load categories', 'error')
@@ -116,18 +115,16 @@ const AdminPanel = () => {
   const fetchBlogs = async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({
+      const params = {
         page: currentPage,
         limit: 10,
         search: searchTerm,
         status: statusFilter === 'all' ? '' : statusFilter
-      })
+      }
 
-      const response = await axios.get(`/api/blogs?${params}`, {
-        withCredentials: true
-      })
-      setBlogs(response.data.blogs || [])
-      setTotalPages(Math.ceil((response.data.total || 0) / 10))
+      const response = await blogAPI.getBlogs(params)
+      setBlogs(response.blogs || [])
+      setTotalPages(Math.ceil((response.total || 0) / 10))
     } catch (error) {
       console.error('Error fetching blogs:', error)
       showToast('Failed to load blogs', 'error')
@@ -139,10 +136,8 @@ const AdminPanel = () => {
   const fetchBanners = async () => {
     setLoading(true)
     try {
-      const response = await axios.get('/api/admin/banners', {
-        withCredentials: true
-      })
-      setBanners(response.data.banners || [])
+      const response = await bannerAPI.getAdminBanners()
+      setBanners(response.banners || [])
     } catch (error) {
       console.error('Error fetching banners:', error)
       showToast('Failed to load banners', 'error')
@@ -269,20 +264,14 @@ const AdminPanel = () => {
       if (editingBlog) {
         // Update existing blog
         formPayload.append('id', editingBlog.id)
-        response = await axios.put('/api/admin/blogs', formPayload, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          withCredentials: true
-        })
+        response = await blogAPI.updateBlog(formPayload)
       } else {
         // Create new blog
-        response = await axios.post('/api/admin/blogs', formPayload, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          withCredentials: true
-        })
+        response = await blogAPI.createBlog(formPayload)
       }
 
       // Show success message with related books info
-      const responseData = response.data
+      const responseData = response
       let successMessage = editingBlog ? 'Blog updated successfully!' : 'Blog created successfully!'
       
       if (responseData.related_books_added !== undefined) {
@@ -342,9 +331,7 @@ const AdminPanel = () => {
     if (!confirm('Are you sure you want to delete this blog?')) return
 
     try {
-      await axios.delete(`/api/admin/blogs?id=${blogId}`, {
-        withCredentials: true
-      })
+      await blogAPI.deleteBlog(blogId)
       showToast('Blog deleted successfully!')
       fetchBlogs()
     } catch (error) {
@@ -397,16 +384,10 @@ const AdminPanel = () => {
       if (editingBanner) {
         // Update existing banner
         formPayload.append('id', editingBanner.id)
-        response = await axios.put('/api/admin/banners', formPayload, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          withCredentials: true
-        })
+        response = await bannerAPI.updateBanner(formPayload)
       } else {
         // Create new banner
-        response = await axios.post('/api/admin/banners', formPayload, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          withCredentials: true
-        })
+        response = await bannerAPI.createBanner(formPayload)
       }
 
       showToast(editingBanner ? 'Banner updated successfully!' : 'Banner created successfully!')
@@ -439,9 +420,7 @@ const AdminPanel = () => {
     if (!confirm('Are you sure you want to delete this banner?')) return
 
     try {
-      await axios.delete(`/api/admin/banners?id=${bannerId}`, {
-        withCredentials: true
-      })
+      await bannerAPI.deleteBanner(bannerId)
       showToast('Banner deleted successfully!')
       fetchBanners()
     } catch (error) {
