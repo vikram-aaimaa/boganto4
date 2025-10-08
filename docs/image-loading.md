@@ -23,7 +23,7 @@ The blog system uses a combination of Next.js Image optimization and a dedicated
 
 2. Error Handling
    - Invalid images show fallback
-   - Network errors gracefully handled
+   - Network errors gracefully handled   
    - Empty images hidden
 
 ## Usage
