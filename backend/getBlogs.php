@@ -190,7 +190,7 @@ function getBlogById($db, $id) {
         
         // Format the related books data
         $formatted_books = array_map(function($book) {
-            return [
+            return [    
                 'id' => (int)$book['id'],
                 'blog_id' => (int)$book['blog_id'],
                 'title' => $book['title'],

@@ -67,7 +67,7 @@ function sanitizeInput($data) {
 // Helper function to generate slug
 function generateSlug($string) {
     return strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $string)));
-}
+}  
 
 // Helper function to upload file
 function uploadFile($file, $upload_dir = '../uploads/') {
