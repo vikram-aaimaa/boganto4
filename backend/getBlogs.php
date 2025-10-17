@@ -24,7 +24,7 @@ switch ($method) {
         }
         break;
     
-    default:
+    default: 
         sendResponse(['error' => 'Method not allowed'], 405);
 }
 
