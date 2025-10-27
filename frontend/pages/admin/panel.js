@@ -217,6 +217,13 @@ const AdminPanel = () => {
     setLoading(true)
 
     try {
+      // Validate required fields
+      if (!formData.title || !formData.content || !formData.category_id) {
+        showToast('Title, content and category are required', 'error')
+        setLoading(false)
+        return
+      }
+
       // Validate related books before submission
       const validBooks = relatedBooks.filter(book => 
         book.title && book.title.trim() !== '' && 
@@ -232,12 +239,24 @@ const AdminPanel = () => {
       console.log(`Submitting blog with ${validBooks.length} valid related books:`, validBooks)
       const formPayload = new FormData()
       
-      // Add all form fields
+      // Add required fields first
+      formPayload.append('title', formData.title)
+      formPayload.append('content', formData.content)
+      formPayload.append('category_id', formData.category_id)
+
+      // Add editing blog ID if updating
+      if (editingBlog && editingBlog.id) {
+        formPayload.append('id', editingBlog.id)
+      }
+      
+      // Add other fields
       Object.keys(formData).forEach(key => {
-        if ((key === 'featured_image' || key === 'featured_image_2') && formData[key]) {
-          formPayload.append(key, formData[key])
-        } else if (key !== 'featured_image' && key !== 'featured_image_2' && key !== 'related_books') {
-          formPayload.append(key, formData[key])
+        if (!['title', 'content', 'category_id'].includes(key)) {  // Skip already added required fields
+          if ((key === 'featured_image' || key === 'featured_image_2') && formData[key]) {
+            formPayload.append(key, formData[key])
+          } else if (key !== 'featured_image' && key !== 'featured_image_2' && key !== 'related_books') {
+            formPayload.append(key, formData[key])
+          }
         }
       })
 

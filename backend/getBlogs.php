@@ -203,8 +203,12 @@ function getBlogById($db, $id) {
             ];
         }, $related_books);
         
+        // Get related blogs/articles
+        $related_blogs = getRelatedBlogs($db, $id, $blog['category_id'], $blog['tags']);
+        
         $blog = formatBlog($blog);
         $blog['related_books'] = $formatted_books;
+        $blog['related_blogs'] = $related_blogs;
         
         sendResponse(['blog' => $blog]);
         
@@ -260,13 +264,95 @@ function getBlogBySlug($db, $slug) {
             ];
         }, $related_books);
         
+        // Get related blogs/articles
+        $related_blogs = getRelatedBlogs($db, $blog['id'], $blog['category_id'], $blog['tags']);
+        
         $blog = formatBlog($blog);
         $blog['related_books'] = $formatted_books;
+        $blog['related_blogs'] = $related_blogs;
         
         sendResponse(['blog' => $blog]);
         
     } catch (PDOException $e) {
         sendResponse(['error' => 'Database query failed: ' . $e->getMessage()], 500);
+    }
+}
+
+function getRelatedBlogs($db, $current_blog_id, $category_id, $tags, $limit = 6) {
+    try {
+        // Build query to find related blogs based on:
+        // 1. Same category (highest priority)
+        // 2. Matching tags (secondary priority)
+        // Exclude the current blog
+        
+        $query = "SELECT b.id, b.title, b.slug, b.excerpt, b.featured_image, 
+                         b.category_id, b.view_count, b.created_at, 
+                         c.name as category_name, c.slug as category_slug";
+        
+        // Add score calculation for relevance
+        if ($tags) {
+            $tag_array = explode(',', $tags);
+            $tag_conditions = [];
+            foreach ($tag_array as $tag) {
+                $tag_conditions[] = "b.tags LIKE " . $db->quote('%' . trim($tag) . '%');
+            }
+            $tag_match = implode(' OR ', $tag_conditions);
+            $query .= ", (CASE WHEN b.category_id = :category_id THEN 2 ELSE 0 END + 
+                          CASE WHEN ($tag_match) THEN 1 ELSE 0 END) as relevance_score";
+        } else {
+            $query .= ", (CASE WHEN b.category_id = :category_id THEN 2 ELSE 0 END) as relevance_score";
+        }
+        
+        $query .= " FROM blogs b 
+                    LEFT JOIN categories c ON b.category_id = c.id 
+                    WHERE b.id != :current_blog_id 
+                    AND b.status = 'published'";
+        
+        // Add category or tag matching condition
+        if ($tags) {
+            $tag_array = explode(',', $tags);
+            $tag_conditions = [];
+            foreach ($tag_array as $tag) {
+                $tag_conditions[] = "b.tags LIKE " . $db->quote('%' . trim($tag) . '%');
+            }
+            $tag_match = implode(' OR ', $tag_conditions);
+            $query .= " AND (b.category_id = :category_id OR ($tag_match))";
+        } else {
+            $query .= " AND b.category_id = :category_id";
+        }
+        
+        // Order by relevance score first, then by creation date
+        $query .= " ORDER BY relevance_score DESC, b.created_at DESC LIMIT :limit";
+        
+        $stmt = $db->prepare($query);
+        $stmt->bindParam(':current_blog_id', $current_blog_id, PDO::PARAM_INT);
+        $stmt->bindParam(':category_id', $category_id, PDO::PARAM_INT);
+        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        
+        $related_blogs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Format the related blogs
+        $formatted_related_blogs = array_map(function($blog) {
+            return [
+                'id' => (int)$blog['id'],
+                'title' => $blog['title'],
+                'slug' => $blog['slug'],
+                'excerpt' => $blog['excerpt'],
+                'featured_image' => getFullImageUrl($blog['featured_image']),
+                'category_id' => (int)$blog['category_id'],
+                'category_name' => $blog['category_name'],
+                'category_slug' => $blog['category_slug'],
+                'view_count' => (int)$blog['view_count'],
+                'created_at' => $blog['created_at']
+            ];
+        }, $related_blogs);
+        
+        return $formatted_related_blogs;
+        
+    } catch (PDOException $e) {
+        error_log('Error fetching related blogs: ' . $e->getMessage());
+        return [];
     }
 }
 

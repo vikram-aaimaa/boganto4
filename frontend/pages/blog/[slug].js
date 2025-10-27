@@ -37,10 +37,11 @@ export async function getServerSideProps({ params }) {
     if (response && response.blog) {
       console.log("Blog data found:", response.blog);
       console.log("Related books in SSR:", response.blog.related_books);
+      console.log("Related blogs in SSR:", response.blog.related_blogs);
       return {
         props: {
           initialBlog: response.blog,
-          relatedArticles: [],
+          relatedArticles: response.blog.related_blogs || [],
         },
       };
     } else {
@@ -49,7 +50,7 @@ export async function getServerSideProps({ params }) {
       return {
         props: {
           error: errorMsg,
-          initialBlog: null,   
+          initialBlog: null,
           relatedArticles: [],
         },
       };
@@ -72,14 +73,20 @@ export async function getServerSideProps({ params }) {
 }
 
 // BlogDetailPage component definition starts here
-function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
+function BlogDetailPage({
+  initialBlog = null,
+  relatedArticles: initialRelatedArticles = [],
+}) {
   const router = useRouter();
   const { slug } = router.query;
   const [blog, setBlog] = useState(initialBlog);
   const [relatedBooks, setRelatedBooks] = useState(
     initialBlog && initialBlog.related_books ? initialBlog.related_books : []
   );
-  const [loading, setLoading] = useState(!initialBlog); 
+  const [relatedArticles, setRelatedArticles] = useState(
+    initialRelatedArticles
+  );
+  const [loading, setLoading] = useState(!initialBlog);
   const [error, setError] = useState(null);
   const [tableOfContents, setTableOfContents] = useState([]);
   const [showMoreRelated, setShowMoreRelated] = useState(false);
@@ -87,10 +94,10 @@ function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
   const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
-    if (!initialBlog && slug) {
+    if (slug) {
       fetchBlogDetail();
     }
-  }, [slug, initialBlog]);
+  }, [slug]);
 
   useEffect(() => {
     if (blog) {
@@ -119,6 +126,19 @@ function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
       } else {
         console.log("No related books found in response");
         setRelatedBooks([]);
+      }
+
+      // Set related articles/blogs from the response
+      if (response.blog && response.blog.related_blogs) {
+        console.log("Related blogs found:", response.blog.related_blogs);
+        setRelatedArticles(
+          Array.isArray(response.blog.related_blogs)
+            ? response.blog.related_blogs
+            : []
+        );
+      } else {
+        console.log("No related blogs found in response");
+        setRelatedArticles([]);
       }
 
       setLoading(false);
@@ -697,7 +717,17 @@ function BlogDetailPage({ initialBlog = null, relatedArticles = [] }) {
                     key={article.id}
                     className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
                   >
-                    <Link href={`/blog/${article.slug}`}>
+                    <Link
+                      href={`/blog/${article.slug}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setLoading(true);
+                        setBlog(null);
+                        setRelatedBooks([]);
+                        setRelatedArticles([]);
+                        router.push(`/blog/${article.slug}`);
+                      }}
+                    >
                       <div className="aspect-video relative">
                         <img
                           src={
