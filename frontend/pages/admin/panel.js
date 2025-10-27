@@ -239,19 +239,22 @@ const AdminPanel = () => {
       console.log(`Submitting blog with ${validBooks.length} valid related books:`, validBooks)
       const formPayload = new FormData()
       
-      // Add required fields first
+      // Add editing blog ID FIRST if updating (critical for backend to detect update vs create)
+      if (editingBlog && editingBlog.id) {
+        formPayload.append('id', editingBlog.id)
+        console.log('Updating blog with ID:', editingBlog.id)
+      } else {
+        console.log('Creating new blog')
+      }
+      
+      // Add required fields
       formPayload.append('title', formData.title)
       formPayload.append('content', formData.content)
       formPayload.append('category_id', formData.category_id)
-
-      // Add editing blog ID if updating
-      if (editingBlog && editingBlog.id) {
-        formPayload.append('id', editingBlog.id)
-      }
       
       // Add other fields
       Object.keys(formData).forEach(key => {
-        if (!['title', 'content', 'category_id'].includes(key)) {  // Skip already added required fields
+        if (!['title', 'content', 'category_id', 'id'].includes(key)) {  // Skip already added fields
           if ((key === 'featured_image' || key === 'featured_image_2') && formData[key]) {
             formPayload.append(key, formData[key])
           } else if (key !== 'featured_image' && key !== 'featured_image_2' && key !== 'related_books') {
@@ -279,10 +282,15 @@ const AdminPanel = () => {
         })
       }
 
+      // Log FormData contents for debugging
+      console.log('FormData contents:')
+      for (let pair of formPayload.entries()) {
+        console.log(pair[0] + ':', pair[1] instanceof File ? `File: ${pair[1].name}` : pair[1])
+      }
+
       let response
       if (editingBlog) {
         // Update existing blog
-        formPayload.append('id', editingBlog.id)
         response = await blogAPI.updateBlog(formPayload)
       } else {
         // Create new blog
