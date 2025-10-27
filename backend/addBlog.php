@@ -177,9 +177,18 @@ function addBlog($db) {
 }
 
 function updateBlog($db) {
+    // Log the incoming request data for debugging
+    error_log('=== UPDATE BLOG REQUEST ===');
+    error_log('POST data: ' . print_r($_POST, true));
+    error_log('FILES data: ' . print_r($_FILES, true));
+    error_log('Request method: ' . $_SERVER['REQUEST_METHOD']);
+    error_log('Content-Type: ' . ($_SERVER['CONTENT_TYPE'] ?? 'not set'));
+    
     try {
         // Check if this is a form data request (with files) or JSON request
         $isFormData = isset($_POST['id']);
+        
+        error_log('Is FormData request: ' . ($isFormData ? 'YES' : 'NO'));
         
         if ($isFormData) {
             // Handle form data with potential file uploads
@@ -193,6 +202,8 @@ function updateBlog($db) {
             $meta_description = isset($_POST['meta_description']) ? sanitizeInput($_POST['meta_description']) : null;
             $is_featured = isset($_POST['is_featured']) ? (bool)$_POST['is_featured'] : false;
             $status = isset($_POST['status']) ? sanitizeInput($_POST['status']) : 'draft';
+            
+            error_log("Parsed FormData - ID: $id, Title: $title, Category: $category_id");
             
             // Handle file uploads for update
             $featured_image = null;
@@ -228,6 +239,7 @@ function updateBlog($db) {
         } else {
             // Handle JSON data for regular updates
             $input = json_decode(file_get_contents('php://input'), true);
+            error_log('JSON input: ' . print_r($input, true));
             
             $id = isset($input['id']) ? (int)$input['id'] : null;
             $title = isset($input['title']) ? sanitizeInput($input['title']) : null;
@@ -240,10 +252,30 @@ function updateBlog($db) {
             $is_featured = isset($input['is_featured']) ? (bool)$input['is_featured'] : false;
             $status = isset($input['status']) ? sanitizeInput($input['status']) : 'draft';
             $updateImages = false;
+            
+            error_log("Parsed JSON - ID: $id, Title: $title, Category: $category_id");
         }
         
-        if (!$id || !$title || !$content || !$category_id) {
-            sendResponse(['error' => 'ID, title, content, and category are required'], 400);
+        // Enhanced validation with detailed error messages
+        error_log("Validation check - ID: " . ($id ?? 'NULL') . ", Title: " . ($title ?? 'NULL') . ", Content length: " . (isset($content) ? strlen($content) : 'NULL') . ", Category: " . ($category_id ?? 'NULL'));
+        
+        $errors = [];
+        if (!$id || $id <= 0) {
+            $errors[] = 'Valid blog ID is required';
+        }
+        if (!$title || trim($title) === '') {
+            $errors[] = 'Title is required and cannot be empty';
+        }
+        if (!$content || trim($content) === '') {
+            $errors[] = 'Content is required and cannot be empty';
+        }
+        if (!$category_id || !is_numeric($category_id) || $category_id <= 0) {
+            $errors[] = 'Valid category is required';
+        }
+        
+        if (!empty($errors)) {
+            error_log('Validation errors in updateBlog: ' . implode(', ', $errors));
+            sendResponse(['error' => 'Validation failed', 'details' => $errors], 400);
         }
         
         // Update blog with or without images
@@ -299,6 +331,7 @@ function updateBlog($db) {
         }
         
         $stmt->execute();
+        error_log("Blog updated successfully - ID: $id");
         
         // Handle related books for form data updates
         if ($isFormData && isset($_POST['related_books']) && $_POST['related_books']) {
